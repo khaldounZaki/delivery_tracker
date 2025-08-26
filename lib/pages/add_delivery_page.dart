@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:intl/intl.dart';
-import '../data/sn_parser.dart';
 import '../data/db.dart';
+import '../data/sn_parser.dart';
 import '../models/delivery.dart';
+import '../models/product.dart';
 
 class AddDeliveryPage extends StatefulWidget {
   const AddDeliveryPage({super.key});
@@ -13,183 +13,111 @@ class AddDeliveryPage extends StatefulWidget {
 }
 
 class _AddDeliveryPageState extends State<AddDeliveryPage> {
+  final _clientC = TextEditingController();
+  final _phoneC = TextEditingController();
+  final _noteC = TextEditingController();
   final _snC = TextEditingController();
-  final _clientNameC = TextEditingController();
-  final _clientPhoneC = TextEditingController();
-  final _clientAddressC = TextEditingController();
-  final _deliveredByC = TextEditingController(text: 'admin'); // demo
-  String _productType = 'Unknown Product';
-  bool _saving = false;
-  String? _msg;
 
-  void _onSNChanged() {
-    setState(() => _productType = productTypeFromSN(_snC.text.trim()));
+  List<Product> products = [];
+
+  void _addProduct(String sn) {
+    if (sn.isEmpty) return;
+    final desc = productTypeFromSN(sn);
+    setState(() {
+      products.add(Product(sn: sn, description: desc));
+      _snC.clear();
+    });
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _snC.addListener(_onSNChanged);
+  void _scanSN() async {
+    String? scannedSN = await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => const ScannerPage(),
+    ));
+    if (scannedSN != null) _addProduct(scannedSN);
   }
 
-  @override
-  void dispose() {
-    _snC.removeListener(_onSNChanged);
-    _snC.dispose();
-    _clientNameC.dispose();
-    _clientPhoneC.dispose();
-    _clientAddressC.dispose();
-    _deliveredByC.dispose();
-    super.dispose();
-  }
-
-  Future<void> _save() async {
-    final sn = _snC.text.trim();
-    if (sn.isEmpty) { setState(() => _msg = 'Serial Number is required'); return; }
-    if (_clientNameC.text.trim().isEmpty) { setState(() => _msg = 'Client name is required'); return; }
-    if (_clientPhoneC.text.trim().isEmpty) { setState(() => _msg = 'Client phone is required'); return; }
-
-    setState(() { _saving = true; _msg = null; });
-    final d = Delivery(
-      sn: sn,
-      productType: _productType,
-      clientName: _clientNameC.text.trim(),
-      clientPhone: _clientPhoneC.text.trim(),
-      clientAddress: _clientAddressC.text.trim(),
-      deliveredBy: _deliveredByC.text.trim(),
-      deliveredAt: DateTime.now(),
-    );
-    try {
-      await AppDb.instance.insertDelivery(d);
-      if (!mounted) return;
-      setState(() {
-        _msg = 'Saved!';
-        _snC.clear();
-        _clientNameC.clear();
-        _clientPhoneC.clear();
-        _clientAddressC.clear();
-        _deliveredByC.text = 'admin';
-        _productType = 'Unknown Product';
-      });
-    } catch (e) {
-      setState(() { _msg = 'Error: $e'; });
-    } finally {
-      setState(() { _saving = false; });
+  Future<void> _saveDelivery() async {
+    if (_clientC.text.isEmpty || products.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Client & products required')));
+      return;
     }
-  }
-
-  Future<void> _scan() async {
-    final code = await Navigator.of(context).push<String>(
-      MaterialPageRoute(builder: (_) => const _ScanPage()),
+    final delivery = Delivery(
+      client: _clientC.text,
+      phone: _phoneC.text,
+      note: _noteC.text,
+      products: products,
     );
-    if (code != null && code.isNotEmpty) {
-      _snC.text = code;
-    }
+    await DBHelper.insertDelivery(delivery);
+    Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
-    final fmt = DateFormat('yyyy-MM-dd HH:mm');
     return Scaffold(
       appBar: AppBar(title: const Text('Add Delivery')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _snC,
-                    decoration: const InputDecoration(
-                      labelText: 'Serial Number (SN)',
-                      prefixIcon: Icon(Icons.qr_code_2),
-                    ),
-                  ),
+      body: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(children: [
+          TextField(
+              controller: _clientC,
+              decoration: const InputDecoration(labelText: 'Client')),
+          TextField(
+              controller: _phoneC,
+              decoration: const InputDecoration(labelText: 'Phone')),
+          TextField(
+              controller: _noteC,
+              decoration: const InputDecoration(labelText: 'Note')),
+          const SizedBox(height: 10),
+          Row(children: [
+            Expanded(
+              child: TextField(
+                  controller: _snC,
+                  decoration: const InputDecoration(labelText: 'Product SN')),
+            ),
+            IconButton(
+                icon: const Icon(Icons.add),
+                onPressed: () => _addProduct(_snC.text)),
+            IconButton(
+                icon: const Icon(Icons.qr_code_scanner), onPressed: _scanSN),
+          ]),
+          const SizedBox(height: 10),
+          Expanded(
+            child: ListView.builder(
+              itemCount: products.length,
+              itemBuilder: (_, i) => ListTile(
+                title: Text(products[i].description),
+                subtitle: Text(products[i].sn),
+                trailing: IconButton(
+                  icon: const Icon(Icons.delete),
+                  onPressed: () => setState(() => products.removeAt(i)),
                 ),
-                const SizedBox(width: 8),
-                IconButton.outlined(onPressed: _scan, icon: const Icon(Icons.camera_alt)),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Text('Product: '),
-                Chip(label: Text(_productType)),
-                const Spacer(),
-                Text(fmt.format(DateTime.now())),
-              ],
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _clientNameC,
-              decoration: const InputDecoration(labelText: 'Client Name', prefixIcon: Icon(Icons.person)),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _clientPhoneC,
-              decoration: const InputDecoration(labelText: 'Client Phone', prefixIcon: Icon(Icons.phone)),
-              keyboardType: TextInputType.phone,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _clientAddressC,
-              decoration: const InputDecoration(labelText: 'Client Address', prefixIcon: Icon(Icons.location_on)),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _deliveredByC,
-              decoration: const InputDecoration(labelText: 'Delivered By', prefixIcon: Icon(Icons.badge)),
-            ),
-            const SizedBox(height: 16),
-            if (_msg != null) Text(_msg!, style: TextStyle(color: _msg == 'Saved!' ? Colors.green : Colors.red)),
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: _saving ? null : _save,
-                icon: const Icon(Icons.save),
-                label: _saving ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Save Delivery'),
               ),
             ),
-          ],
-        ),
+          ),
+          ElevatedButton(
+              onPressed: _saveDelivery, child: const Text('Save Delivery')),
+        ]),
       ),
     );
   }
 }
 
-class _ScanPage extends StatefulWidget {
-  const _ScanPage();
-
-  @override
-  State<_ScanPage> createState() => _ScanPageState();
-}
-
-class _ScanPageState extends State<_ScanPage> {
-  final MobileScannerController _controller = MobileScannerController();
-
-  bool _handled = false;
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+class ScannerPage extends StatelessWidget {
+  const ScannerPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Scan SN')),
       body: MobileScanner(
-        controller: _controller,
         onDetect: (capture) {
-          if (_handled) return;
-          final barcodes = capture.barcodes;
+          final List<Barcode> barcodes = capture.barcodes;
           if (barcodes.isNotEmpty) {
-            _handled = true;
-            final code = barcodes.first.rawValue ?? '';
-            Navigator.of(context).pop(code);
+            final sn = barcodes.first.rawValue;
+            if (sn != null) {
+              Navigator.of(context).pop(sn);
+            }
           }
         },
       ),

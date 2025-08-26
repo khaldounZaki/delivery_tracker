@@ -1,8 +1,8 @@
 /// Map your SN prefixes to product descriptions here.
 const Map<String, String> snPrefixMap = {
   'MB-700FRS': 'Single Door Freezer',
-  'MB-900REF': 'Double Door Refrigerator',
-  'MB-600CHL': 'Chiller Cabinet',
+  'MB-700CHS': 'Single Door Chiller',
+  'MB-1400FRS': 'Double Door Chiller',
 };
 
 String productTypeFromSN(String sn) {

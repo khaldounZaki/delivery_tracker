@@ -1,7 +1,7 @@
 import 'product.dart';
 
 class Delivery {
-  int? id;
+  String? id;
   String client;
   String phone;
   String note;

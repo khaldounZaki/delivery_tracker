@@ -1,6 +1,6 @@
 class Product {
-  int? id;
-  int? deliveryId;
+  String? id;
+  String? deliveryId;
   String sn;
   String description;
 

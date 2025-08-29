@@ -19,37 +19,80 @@ class _AddDeliveryPageState extends State<AddDeliveryPage> {
   final _snC = TextEditingController();
 
   List<Product> products = [];
+  List<String> scannedSNs = [];
 
+  /// Add product from SN
   void _addProduct(String sn) {
-    if (sn.isEmpty) return;
+    if (sn.isEmpty || scannedSNs.contains(sn)) return;
+
     final desc = productTypeFromSN(sn);
     setState(() {
       products.add(Product(sn: sn, description: desc));
+      scannedSNs.add(sn);
       _snC.clear();
     });
   }
 
-  void _scanSN() async {
-    String? scannedSN = await Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => const ScannerPage(),
-    ));
-    if (scannedSN != null) _addProduct(scannedSN);
+  /// Open scanner in a dialog
+  void _openScanner() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Scan SN'),
+        content: SizedBox(
+          width: 300,
+          height: 300,
+          child: MobileScanner(
+            onDetect: (capture) {
+              final barcode = capture.barcodes.first;
+              final sn = barcode.rawValue;
+              if (sn != null && !scannedSNs.contains(sn)) {
+                setState(() {
+                  products
+                      .add(Product(sn: sn, description: productTypeFromSN(sn)));
+                  scannedSNs.add(sn);
+                });
+              }
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Done'),
+          ),
+        ],
+      ),
+    );
   }
 
+  /// Save delivery + products to Firebase/DB
   Future<void> _saveDelivery() async {
     if (_clientC.text.isEmpty || products.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Client & products required')));
+        const SnackBar(content: Text('Client & products are required')),
+      );
       return;
     }
+
     final delivery = Delivery(
       client: _clientC.text,
       phone: _phoneC.text,
       note: _noteC.text,
+      //date: DateTime.now().toIso8601String(),
       products: products,
     );
-    await DBHelper.insertDelivery(delivery);
-    Navigator.of(context).pop();
+
+    try {
+      await DBHelper.insertDelivery(delivery);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Delivery saved!')));
+      Navigator.of(context).pop(); // Pop AFTER saving
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save delivery: $e')),
+      );
+    }
   }
 
   @override
@@ -58,68 +101,66 @@ class _AddDeliveryPageState extends State<AddDeliveryPage> {
       appBar: AppBar(title: const Text('Add Delivery')),
       body: Padding(
         padding: const EdgeInsets.all(12.0),
-        child: Column(children: [
-          TextField(
+        child: Column(
+          children: [
+            TextField(
               controller: _clientC,
-              decoration: const InputDecoration(labelText: 'Client')),
-          TextField(
-              controller: _phoneC,
-              decoration: const InputDecoration(labelText: 'Phone')),
-          TextField(
-              controller: _noteC,
-              decoration: const InputDecoration(labelText: 'Note')),
-          const SizedBox(height: 10),
-          Row(children: [
-            Expanded(
-              child: TextField(
-                  controller: _snC,
-                  decoration: const InputDecoration(labelText: 'Product SN')),
+              decoration: const InputDecoration(labelText: 'Client'),
             ),
-            IconButton(
-                icon: const Icon(Icons.add),
-                onPressed: () => _addProduct(_snC.text)),
-            IconButton(
-                icon: const Icon(Icons.qr_code_scanner), onPressed: _scanSN),
-          ]),
-          const SizedBox(height: 10),
-          Expanded(
-            child: ListView.builder(
-              itemCount: products.length,
-              itemBuilder: (_, i) => ListTile(
-                title: Text(products[i].description),
-                subtitle: Text(products[i].sn),
-                trailing: IconButton(
-                  icon: const Icon(Icons.delete),
-                  onPressed: () => setState(() => products.removeAt(i)),
+            TextField(
+              controller: _phoneC,
+              decoration: const InputDecoration(labelText: 'Phone'),
+            ),
+            TextField(
+              controller: _noteC,
+              decoration: const InputDecoration(labelText: 'Note'),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _snC,
+                    decoration: const InputDecoration(labelText: 'Product SN'),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.add),
+                  onPressed: () => _addProduct(_snC.text),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.qr_code_scanner),
+                  onPressed: _openScanner,
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: ListView.builder(
+                itemCount: products.length,
+                itemBuilder: (_, i) => Card(
+                  child: ListTile(
+                    title: Text(products[i].description),
+                    subtitle: Text(products[i].sn),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete),
+                      onPressed: () {
+                        setState(() {
+                          scannedSNs.remove(products[i].sn);
+                          products.removeAt(i);
+                        });
+                      },
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
-          ElevatedButton(
-              onPressed: _saveDelivery, child: const Text('Save Delivery')),
-        ]),
-      ),
-    );
-  }
-}
-
-class ScannerPage extends StatelessWidget {
-  const ScannerPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Scan SN')),
-      body: MobileScanner(
-        onDetect: (capture) {
-          final List<Barcode> barcodes = capture.barcodes;
-          if (barcodes.isNotEmpty) {
-            final sn = barcodes.first.rawValue;
-            if (sn != null) {
-              Navigator.of(context).pop(sn);
-            }
-          }
-        },
+            ElevatedButton(
+              onPressed: _saveDelivery,
+              child: const Text('Save Delivery'),
+            ),
+          ],
+        ),
       ),
     );
   }

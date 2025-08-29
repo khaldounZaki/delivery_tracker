@@ -11,12 +11,12 @@ class SearchSNPage extends StatefulWidget {
 
 class _SearchSNPageState extends State<SearchSNPage> {
   final _snC = TextEditingController();
-  Product? result;
+  Map<String, dynamic>? resultData;
 
   void _search() async {
     final sn = _snC.text.trim();
-    final product = await DBHelper.searchSN(sn);
-    setState(() => result = product);
+    final data = await DBHelper.searchSNWithDelivery(sn);
+    setState(() => resultData = data); // resultData is a Map<String, dynamic>?
   }
 
   @override
@@ -36,12 +36,21 @@ class _SearchSNPageState extends State<SearchSNPage> {
             onSubmitted: (_) => _search(),
           ),
           const SizedBox(height: 20),
-          if (result != null)
+          if (resultData != null)
             Card(
+              margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
               child: ListTile(
-                title: Text(result!.description),
-                subtitle: Text(
-                    'SN: ${result!.sn}\nDelivery ID: ${result!.deliveryId}'),
+                title: Text(resultData!['description'] ?? 'Unknown Product'),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('SN: ${resultData!['sn'] ?? ''}'),
+                    Text('Client: ${resultData!['client'] ?? ''}'),
+                    Text('Phone: ${resultData!['phone'] ?? ''}'),
+                    Text('Note: ${resultData!['note'] ?? ''}'),
+                    Text('Delivery Date: ${resultData!['date'].split('T')[0]}')
+                  ],
+                ),
               ),
             ),
         ]),

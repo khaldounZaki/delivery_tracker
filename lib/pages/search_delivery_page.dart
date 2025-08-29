@@ -44,7 +44,13 @@ class _SearchDeliveryPageState extends State<SearchDeliveryPage> {
                 return Card(
                   child: ExpansionTile(
                     title: Text(d.client),
-                    subtitle: Text(d.phone),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(d.phone),
+                        Text('Delivery Date: ${d.date.split('T')[0]}')
+                      ],
+                    ),
                     children: d.products
                         .map((p) => ListTile(
                               title: Text(p.description),

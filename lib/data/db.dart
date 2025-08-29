@@ -20,7 +20,8 @@ class DBHelper {
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           client TEXT,
           phone TEXT,
-          note TEXT
+          note TEXT,
+          date TEXT
         )
       ''');
       await db.execute('''
@@ -72,5 +73,18 @@ class DBHelper {
     final maps = await db.query('products', where: "sn = ?", whereArgs: [sn]);
     if (maps.isEmpty) return null;
     return Product.fromMap(maps.first);
+  }
+
+  static Future<Map<String, dynamic>?> searchSNWithDelivery(String sn) async {
+    final db = await database;
+    final result = await db.rawQuery('''
+    SELECT p.sn, p.description, d.client, d.phone, d.note, d.date , d.id as deliveryId
+    FROM products p
+    JOIN deliveries d ON p.deliveryId = d.id
+    WHERE p.sn = ?
+  ''', [sn]);
+
+    if (result.isEmpty) return null;
+    return result.first;
   }
 }

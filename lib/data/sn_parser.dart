@@ -1,13 +1,22 @@
-/// Map your SN prefixes to product descriptions here.
-const Map<String, String> snPrefixMap = {
-  'MB-700FRS': 'Single Door Freezer',
-  'MB-700CHS': 'Single Door Chiller',
-  'MB-1400FRS': 'Double Door Chiller',
-};
+import 'package:cloud_firestore/cloud_firestore.dart';
 
+/// Cached map of SN prefixes → product descriptions
+Map<String, String> _snPrefixCache = {};
+
+/// Load prefixes from Firestore (call this at app start or first use)
+Future<void> loadSnPrefixesFromFirebase() async {
+  final snapshot =
+      await FirebaseFirestore.instance.collection('sn_prefixes').get();
+
+  _snPrefixCache = {
+    for (var doc in snapshot.docs) doc.id.toUpperCase(): doc['description']
+  };
+}
+
+/// Get product type from SN
 String productTypeFromSN(String sn) {
-  for (final entry in snPrefixMap.entries) {
-    if (sn.toUpperCase().startsWith(entry.key.toUpperCase())) {
+  for (final entry in _snPrefixCache.entries) {
+    if (sn.toUpperCase().startsWith(entry.key)) {
       return entry.value;
     }
   }

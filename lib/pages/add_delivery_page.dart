@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:vibration/vibration.dart';
+
 import '../data/db.dart';
 import '../data/sn_parser.dart';
 import '../models/delivery.dart';
@@ -18,6 +21,8 @@ class _AddDeliveryPageState extends State<AddDeliveryPage> {
   final _noteC = TextEditingController();
   final _snC = TextEditingController();
 
+  final AudioPlayer _audioPlayer = AudioPlayer();
+
   List<Product> products = [];
   List<String> scannedSNs = [];
 
@@ -31,6 +36,17 @@ class _AddDeliveryPageState extends State<AddDeliveryPage> {
       scannedSNs.add(sn);
       _snC.clear();
     });
+  }
+
+  /// Play beep + vibrate
+  Future<void> _feedback() async {
+    // Play a short beep (make sure you add "assets/beep.mp3" in pubspec.yaml)
+    await _audioPlayer.play(AssetSource('beep.wav'));
+
+    // Vibrate if device supports it
+    if (await Vibration.hasVibrator() ?? false) {
+      Vibration.vibrate(duration: 200); // short vibration
+    }
   }
 
   /// Open scanner in a dialog
@@ -52,6 +68,7 @@ class _AddDeliveryPageState extends State<AddDeliveryPage> {
                       .add(Product(sn: sn, description: productTypeFromSN(sn)));
                   scannedSNs.add(sn);
                 });
+                _feedback(); // 🔊 beep + vibration on scan
               }
             },
           ),
@@ -79,7 +96,6 @@ class _AddDeliveryPageState extends State<AddDeliveryPage> {
       client: _clientC.text,
       phone: _phoneC.text,
       note: _noteC.text,
-      //date: DateTime.now().toIso8601String(),
       products: products,
     );
 

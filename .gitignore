@@ -17,4 +17,4 @@ ios/Flutter/Flutter.podspec
 # VSCode & IntelliJ
 .idea/
 .vscode/
-*.iml
+*.imllib/firebase_options.dart

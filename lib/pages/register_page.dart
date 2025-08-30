@@ -1,29 +1,34 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'home_page.dart';
-import 'register_page.dart';
 
-class SignInPage extends StatefulWidget {
-  const SignInPage({super.key});
+class RegisterPage extends StatefulWidget {
+  const RegisterPage({super.key});
 
   @override
-  State<SignInPage> createState() => _SignInPageState();
+  State<RegisterPage> createState() => _RegisterPageState();
 }
 
-class _SignInPageState extends State<SignInPage> {
+class _RegisterPageState extends State<RegisterPage> {
   final _emailC = TextEditingController();
   final _passC = TextEditingController();
+  final _confirmPassC = TextEditingController();
   bool _loading = false;
   String? _error;
 
-  Future<void> _signIn() async {
+  Future<void> _register() async {
+    if (_passC.text.trim() != _confirmPassC.text.trim()) {
+      setState(() => _error = "Passwords do not match");
+      return;
+    }
+
     setState(() {
       _loading = true;
       _error = null;
     });
 
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _emailC.text.trim(),
         password: _passC.text.trim(),
       );
@@ -34,7 +39,7 @@ class _SignInPageState extends State<SignInPage> {
       );
     } on FirebaseAuthException catch (e) {
       setState(() {
-        _error = e.message ?? 'Login failed';
+        _error = e.message ?? 'Registration failed';
       });
     } finally {
       setState(() {
@@ -53,7 +58,7 @@ class _SignInPageState extends State<SignInPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 24),
-              Text('Sign in',
+              Text('Register',
                   style: Theme.of(context).textTheme.headlineMedium),
               const SizedBox(height: 24),
               TextField(
@@ -73,6 +78,15 @@ class _SignInPageState extends State<SignInPage> {
                 ),
                 obscureText: true,
               ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _confirmPassC,
+                decoration: const InputDecoration(
+                  labelText: 'Confirm Password',
+                  prefixIcon: Icon(Icons.lock_outline),
+                ),
+                obscureText: true,
+              ),
               if (_error != null) ...[
                 const SizedBox(height: 12),
                 Text(_error!, style: const TextStyle(color: Colors.red)),
@@ -81,26 +95,22 @@ class _SignInPageState extends State<SignInPage> {
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  onPressed: _loading ? null : _signIn,
+                  onPressed: _loading ? null : _register,
                   child: _loading
                       ? const SizedBox(
                           height: 20,
                           width: 20,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('Sign in'),
+                      : const Text('Register'),
                 ),
               ),
               const SizedBox(height: 12),
               TextButton(
                 onPressed: () {
-                  // Navigate to register page (we can build it next)
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const RegisterPage()),
-                  );
+                  Navigator.pop(context); // go back to login
                 },
-                child: const Text("Don't have an account? Register"),
+                child: const Text("Already have an account? Sign in"),
               ),
             ],
           ),

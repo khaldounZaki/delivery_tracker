@@ -4,6 +4,7 @@ import 'add_delivery_page.dart';
 import 'search_delivery_page.dart';
 import 'search_sn_page.dart';
 import 'sign_in_page.dart';
+import 'fabrication_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -71,6 +72,13 @@ class HomePage extends StatelessWidget {
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const SearchSNPage()),
               ),
+            ),
+            _HomeTile(
+              // 🆕 Fabrication Done button
+              icon: Icons.factory, // 🏭 nice fabrication icon
+              title: 'Fabrication Done',
+              onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const FabricationPage())),
             ),
           ],
         ),

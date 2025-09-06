@@ -5,6 +5,8 @@ import 'search_delivery_page.dart';
 import 'search_sn_page.dart';
 import 'sign_in_page.dart';
 import 'fabrication_page.dart';
+import 'fabrication_report_page.dart';
+import 'delivery_report_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -79,6 +81,18 @@ class HomePage extends StatelessWidget {
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const SearchSNPage()),
               ),
+            ),
+            _HomeTile(
+              icon: Icons.insert_chart_outlined,
+              title: 'Fabrication Report',
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => const FabricationReportPage())),
+            ),
+            _HomeTile(
+              icon: Icons.insert_chart_outlined,
+              title: 'Delivery Report',
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => const DeliveryReportPage())),
             ),
           ],
         ),

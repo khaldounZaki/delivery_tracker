@@ -53,6 +53,13 @@ class HomePage extends StatelessWidget {
           mainAxisSpacing: 16,
           children: [
             _HomeTile(
+              // 🆕 Fabrication Done button
+              icon: Icons.factory, // 🏭 nice fabrication icon
+              title: 'Fabrication Done',
+              onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const FabricationPage())),
+            ),
+            _HomeTile(
               icon: Icons.add_box_outlined,
               title: 'Add Delivery',
               onTap: () => Navigator.of(context).push(
@@ -72,13 +79,6 @@ class HomePage extends StatelessWidget {
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const SearchSNPage()),
               ),
-            ),
-            _HomeTile(
-              // 🆕 Fabrication Done button
-              icon: Icons.factory, // 🏭 nice fabrication icon
-              title: 'Fabrication Done',
-              onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const FabricationPage())),
             ),
           ],
         ),

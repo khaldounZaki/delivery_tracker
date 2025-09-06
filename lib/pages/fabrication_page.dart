@@ -15,9 +15,15 @@ class _FabricationPageState extends State<FabricationPage> {
   final _snC = TextEditingController();
   final _noteC = TextEditingController();
   bool _loading = false;
+  String? _description; // ✅ store description after scan
 
   Future<void> _registerSN(String sn) async {
-    if (sn.isEmpty) return;
+    if (sn.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please scan an SN before registering.')),
+      );
+      return;
+    }
 
     final desc = productTypeFromSN(sn);
     final user = FirebaseAuth.instance.currentUser;
@@ -55,6 +61,7 @@ class _FabricationPageState extends State<FabricationPage> {
         );
         _snC.clear();
         _noteC.clear();
+        setState(() => _description = null); // reset description
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -65,11 +72,36 @@ class _FabricationPageState extends State<FabricationPage> {
     setState(() => _loading = false);
   }
 
-  void _scanSN() async {
-    final sn = await Navigator.of(context).push<String>(
-      MaterialPageRoute(builder: (_) => const _ScannerPage()),
+  /// Scan dialog (inline with SN field)
+  void _openScanner() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Scan SN'),
+        content: SizedBox(
+          width: 300,
+          height: 300,
+          child: MobileScanner(
+            onDetect: (capture) {
+              final sn = capture.barcodes.first.rawValue;
+              if (sn != null) {
+                Navigator.pop(context); // close scanner
+                setState(() {
+                  _snC.text = sn; // ✅ fill SN from scan only
+                  _description = productTypeFromSN(sn); // ✅ update desc
+                });
+              }
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Done'),
+          ),
+        ],
+      ),
     );
-    if (sn != null) _registerSN(sn);
   }
 
   @override
@@ -79,51 +111,50 @@ class _FabricationPageState extends State<FabricationPage> {
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextField(
-              controller: _snC,
-              decoration: const InputDecoration(labelText: 'Product SN'),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _snC,
+                    readOnly: true, // 🚫 user cannot type
+                    decoration: const InputDecoration(labelText: 'Product SN'),
+                  ),
+                ),
+                IconButton(
+                  onPressed: _openScanner,
+                  icon: const Icon(Icons.qr_code_scanner, size: 30),
+                  tooltip: "Scan SN",
+                ),
+              ],
             ),
+            if (_description != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                "Description: $_description",
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, color: Colors.blue),
+              ),
+            ],
+            const SizedBox(height: 16),
             TextField(
               controller: _noteC,
               decoration: const InputDecoration(labelText: 'Note'),
             ),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                ElevatedButton(
-                  onPressed: _loading ? null : () => _registerSN(_snC.text),
-                  child: _loading
-                      ? const CircularProgressIndicator()
-                      : const Text('Register'),
-                ),
-                const SizedBox(width: 12),
-                ElevatedButton.icon(
-                  onPressed: _scanSN,
-                  icon: const Icon(Icons.qr_code_scanner),
-                  label: const Text('Scan SN'),
-                ),
-              ],
+            ElevatedButton(
+              onPressed: _loading ? null : () => _registerSN(_snC.text),
+              child: _loading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Register'),
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _ScannerPage extends StatelessWidget {
-  const _ScannerPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Scan SN')),
-      body: MobileScanner(
-        onDetect: (capture) {
-          final sn = capture.barcodes.first.rawValue;
-          if (sn != null) Navigator.of(context).pop(sn);
-        },
       ),
     );
   }

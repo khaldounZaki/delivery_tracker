@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:vibration/vibration.dart';
-
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../data/db.dart';
 import '../data/sn_parser.dart';
 import '../models/delivery.dart';
@@ -10,7 +11,6 @@ import '../models/product.dart';
 
 class AddDeliveryPage extends StatefulWidget {
   const AddDeliveryPage({super.key});
-
   @override
   State<AddDeliveryPage> createState() => _AddDeliveryPageState();
 }
@@ -26,27 +26,68 @@ class _AddDeliveryPageState extends State<AddDeliveryPage> {
   List<Product> products = [];
   List<String> scannedSNs = [];
 
+  /// Play beep + vibrate
+  Future<void> _feedback() async {
+    await _audioPlayer.play(AssetSource('beep.wav'));
+    if (await Vibration.hasVibrator() ?? false) {
+      Vibration.vibrate(duration: 200);
+    }
+  }
+
+  /// Check if SN already exists in deliveries
+  Future<bool> _isSNUsed(String sn) async {
+    final snap = await FirebaseFirestore.instance
+        .collection('deliveries')
+        .where('products', arrayContainsAny: [
+      {'sn': sn}
+    ]).get();
+    return snap.docs.isNotEmpty;
+  }
+
+  /// Ensure SN exists in fabrications (if not, add it)
+  Future<void> _ensureFabrication(String sn, String desc) async {
+    final snap = await FirebaseFirestore.instance
+        .collection('fabrications')
+        .where('sn', isEqualTo: sn)
+        .get();
+
+    if (snap.docs.isEmpty) {
+      final user = FirebaseAuth.instance.currentUser;
+      await FirebaseFirestore.instance.collection('fabrications').add({
+        'sn': sn,
+        'description': desc,
+        'date': DateTime.now().toIso8601String(),
+        'note': 'Added from Delivery',
+        'user': user?.email ?? 'unknown',
+      });
+    }
+  }
+
   /// Add product from SN
-  void _addProduct(String sn) {
+  Future<void> _addProduct(String sn) async {
     if (sn.isEmpty || scannedSNs.contains(sn)) return;
 
+    // Check duplicates in Firestore
+    final used = await _isSNUsed(sn);
+    if (used) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('SN $sn already exists in deliveries')),
+      );
+      return;
+    }
+
     final desc = productTypeFromSN(sn);
+
+    // Add to fabrication if missing
+    await _ensureFabrication(sn, desc);
+
     setState(() {
       products.add(Product(sn: sn, description: desc));
       scannedSNs.add(sn);
       _snC.clear();
     });
-  }
 
-  /// Play beep + vibrate
-  Future<void> _feedback() async {
-    // Play a short beep (make sure you add "assets/beep.mp3" in pubspec.yaml)
-    await _audioPlayer.play(AssetSource('beep.wav'));
-
-    // Vibrate if device supports it
-    if (await Vibration.hasVibrator() ?? false) {
-      Vibration.vibrate(duration: 200); // short vibration
-    }
+    _feedback();
   }
 
   /// Open scanner in a dialog
@@ -59,16 +100,12 @@ class _AddDeliveryPageState extends State<AddDeliveryPage> {
           width: 300,
           height: 300,
           child: MobileScanner(
-            onDetect: (capture) {
+            onDetect: (capture) async {
               final barcode = capture.barcodes.first;
               final sn = barcode.rawValue;
               if (sn != null && !scannedSNs.contains(sn)) {
-                setState(() {
-                  products
-                      .add(Product(sn: sn, description: productTypeFromSN(sn)));
-                  scannedSNs.add(sn);
-                });
-                _feedback(); // 🔊 beep + vibration on scan
+                Navigator.pop(context); // close dialog after scan
+                await _addProduct(sn);
               }
             },
           ),

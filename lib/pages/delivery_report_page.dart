@@ -68,6 +68,8 @@ class _DeliveryReportPageState extends State<DeliveryReportPage> {
 
   Future<void> _exportExcel() async {
     final excel = Excel.createExcel();
+    // Remove the default "Sheet1"
+    excel.delete('Sheet1');
     final sheet = excel['Deliveries'];
 
     // Add headers

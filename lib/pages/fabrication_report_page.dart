@@ -59,6 +59,8 @@ class _FabricationReportPageState extends State<FabricationReportPage> {
 
   Future<void> _exportExcel() async {
     final excel = Excel.createExcel();
+    // Remove the default "Sheet1"
+    excel.delete('Sheet1');
     final sheet = excel['Fabrications'];
 
     // Add headers

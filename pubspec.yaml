@@ -25,6 +25,8 @@ dependencies:
   pdf: ^3.11.3
   open_file: ^3.5.10
   share_plus: ^11.1.0
+  connectivity_plus: ^6.1.5
+  internet_connection_checker_plus: ^2.7.2
   
 
 dev_dependencies:
